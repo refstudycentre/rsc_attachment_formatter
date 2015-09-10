@@ -1,0 +1,4 @@
+name = RSC Attachment formatter
+description = "A formatter for attachment fields. Download, view in google drive or link directly to the file."
+package = RSC
+core = 7.x

@@ -1,0 +1,258 @@
+<?php
+
+/**
+ * @file
+ * Adds a formatter to attachment fields which provides buttons to download, view in google drive or link directly to the file.
+ */
+
+/*
+ * From http://www.metaltoad.com/blog/drupal-7-tutorial-creating-custom-formatters :
+ *   hook_field_formatter_info() - This tells Drupal what fields it applies to and what settings are available.
+ *   hook_field_formatter_settings_form() - Here we'll tell Drupal how to generate the form that collects the options.
+ *   hook_field_formatter_settings_summary() - This displays the chosen settings on the 'Manage Display' page
+ *   hook_field_formatter_view() - This is the hook where we actually do the formatting
+ */
+
+
+/**
+ * Implements hook_field_formatter_info().
+ */
+function rsc_attachment_formatter_field_formatter_info() {
+  return array(
+    'rsc_attachment_formatter_formatter_icons' => array(
+      'label' => t('Icons for read, download and google drive'),
+      'field types' => array('file'),
+      'settings'  => array(),
+    ),
+    'rsc_attachment_formatter_formatter_dropdown' => array(
+      'label' => t('Direct link, with JS dropdown'),
+      'field types' => array('file'),
+      'settings'  => array(),
+    ),
+    'rsc_attachment_formatter_formatter_list' => array(
+      'label' => t('List of links for read, download and google drive'),
+      'field types' => array('file'),
+      'settings'  => array(),
+    ),
+    'rsc_attachment_formatter_formatter_audio' => array(
+      'label' => t('HTML5 audio element & download link'),
+      'field types' => array('file'),
+      'settings'  => array(),
+    ),
+  );
+}
+
+
+/**
+ * Implements hook_field_formatter_view().
+ */
+function rsc_attachment_formatter_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array();
+
+  foreach($items as $file) {
+    
+    $func = $display['type'];
+    if (function_exists($func)) {
+      switch($func) {
+        case 'rsc_attachment_formatter_formatter_audio':
+          $element[]['#markup'] = $func($file);
+          break;
+        default:
+          $url_dl = rsc_attachment_formatter_download_path($file['fid']);
+          $url_read = file_create_url($file['uri']);
+          $url_drive = 'http://docs.google.com/viewer?url='.$url_read;
+          $element[]['#markup'] = $func($url_dl,$url_read,$url_drive);
+          break;
+      }
+    }
+    
+    break; // for now, allow only one item, because of our theme. TODO: is there a better way to do this?
+  }
+
+  return $element;
+}
+
+
+/**
+ * The icons formatter
+ */
+function rsc_attachment_formatter_formatter_icons($url_dl,$url_read,$url_drive) {
+  // TODO: configurable images and tooltips?
+  $path = drupal_get_path('module', 'rsc_attachment_formatter');
+  $img_dl = l('<img alt="'.t('Download').'" src="/'.$path.'/download.png">', $url_dl, array(
+    'attributes' => array(
+      'title'  => t('Download this article'),
+      'target' => '_blank',
+    ),
+    'html' => TRUE,
+  ));
+  $img_read = l('<img alt="'.t('Read').'" src="/'.$path.'/read.png">', $url_read, array(
+    'attributes' => array(
+      'title'  => t('Read this article in your browser'),
+      'target' => '_blank',
+    ),
+    'html' => TRUE,
+  ));
+  $img_drive = l('<img alt="'.t('Google Drive').'" src="/'.$path.'/drive.png">', $url_drive, array(
+    'attributes' => array(
+      'title'  => t('Open this as a document in Google Drive'),
+      'target' => '_blank',
+    ),
+    'html' => TRUE,
+  ));
+  
+  return <<<MARKUP
+<ul class="att-links icons">
+  <li class="read">$img_read</li>
+  <li class="dl">$img_dl</li>
+  <li class="drive">$img_drive</li>
+</ul>
+MARKUP;
+}
+
+
+/**
+ * The dropdown formatter
+ */
+function rsc_attachment_formatter_formatter_dropdown($url_dl,$url_read,$url_drive) {
+  // This is the same as the list formatter, but with javascript added. All CSS is left to the themer.
+  drupal_add_js(drupal_get_path('module', 'rsc_attachment_formatter').'/rsc_attachment_formatter_dropdown.js', 'file');
+  return rsc_attachment_formatter_formatter_list($url_dl,$url_read,$url_drive);
+}
+
+
+/**
+ * The audio&download formatter
+ */
+function rsc_attachment_formatter_formatter_audio($file) {
+  $a_dl = l(t('Download'), rsc_attachment_formatter_download_path($file['fid']), array(
+    'attributes' => array(
+      'title'  => t('Download this audio file'),
+      'target' => '_blank',
+    ),
+  ));
+  $href = file_create_url($file['uri']);
+  switch(substr($file['filename'],-3,3)) {
+    case 'mp3':
+      $type = 'audio/mpeg';
+      break;
+    case 'wav':
+      $type = 'audio/wav';
+      break;
+    case 'ogg':
+      $type = 'audio/ogg';
+      break;
+  }
+  
+  return <<<MARKUP
+<div class="att-links audio">
+  <audio controls>
+    <source src="$href" type="$type">
+  </audio>
+  $a_dl
+</div>
+MARKUP;
+}
+
+
+/**
+ * The list formatter
+ */
+function rsc_attachment_formatter_formatter_list($url_dl,$url_read,$url_drive) {
+  $a_dl = l(t('Download'), $url_dl, array(
+    'attributes' => array(
+      'title'  => t('Download this article'),
+      'target' => '_blank',
+    ),
+  ));
+  $a_read = l(t('Open'), $url_read, array(
+    'attributes' => array(
+      'title'  => t('Read this article in your browser'),
+      'target' => '_blank',
+    ),
+  ));
+  $a_drive = l(t('Google Drive'), $url_drive, array(
+    'attributes' => array(
+      'title'  => t('Open this as a document in Google Drive'),
+      'target' => '_blank',
+    ),
+  ));
+  
+  return <<<MARKUP
+<ul class="att-links list">
+  <li class="read">$a_read</li>
+  <li class="dl">$a_dl</li>
+  <li class="drive">$a_drive</li>
+</ul>
+MARKUP;
+}
+
+
+/**
+ * Implementation of hook_menu().
+ */
+function rsc_attachment_formatter_menu()
+{
+  $items['download/file/fid/%'] = array(
+    'title'            => 'Download file',
+    'page callback'	   => 'rsc_attachment_formatter_download',
+    'page arguments'   => array(3),
+    'access callback'  => TRUE,
+  );
+  return $items;
+}
+
+
+/**
+ * Page callback which sends a download header
+ *
+ * @param $fid
+ *   The filefield identifier.
+ */
+function rsc_attachment_formatter_download($fid)
+{
+  $fid  = intval($fid);
+  $file = file_load($fid);
+  if (empty($fid) || empty($file) || !$file->status) {
+    drupal_access_denied();
+  }
+  $uri = $file->uri;
+  $headers = array(
+    'Content-Type'              => 'force-download',
+    'Content-Disposition'       => 'attachment; filename="' . $file->filename . '"',
+    'Content-Length'            => $file->filesize,
+    'Content-Transfer-Encoding' => 'binary',
+    'Pragma'                    => 'no-cache',
+    'Cache-Control'             => 'must-revalidate, post-check=0, pre-check=0',
+    'Expires'                   => '0',
+    'Accept-Ranges'             => 'bytes'
+  );
+  
+  /* Grabbed from file.inc */
+  foreach (module_implements('file_download') as $module) {
+    $function = $module . '_file_download';
+    $result = $function($uri);
+    if ($result == -1) {
+      // Throw away the headers received so far.
+      $headers = array();
+      break;
+    }
+    if (isset($result) && is_array($result)) {
+      $headers = array_merge($headers, $result);
+    }
+  }
+
+  if (count($headers)) {
+    file_transfer($file->uri, $headers);
+  } else {
+    drupal_access_denied();
+  }
+}
+
+
+/**
+ * Get the path of a file's download link
+ */
+function rsc_attachment_formatter_download_path($fid) {
+  return 'download/file/fid/' . $fid;
+}
