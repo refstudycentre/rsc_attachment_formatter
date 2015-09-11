@@ -7,7 +7,7 @@
       var $drop = $('div.drop',$ul);
       
       $drop.hide();
-      $('li.read',$ul).append("<a href='#' class='more'>&darr;</a>");
+      $('li.read',$ul).append("<a href='#/' class='more'>&darr;</a>");
       $('a.more',$ul).click(function(e){
         $drop.toggle(200);
         $ul.toggleClass('open');
