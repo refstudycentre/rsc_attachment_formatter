@@ -2,7 +2,7 @@
 
 /**
  * @file
- * Adds a formatter to attachment fields which provides buttons to download, view in google drive or link directly to the file.
+ * Adds formatters for attachment fields
  */
 
 /*
@@ -19,23 +19,23 @@
  */
 function rsc_attachment_formatter_field_formatter_info() {
   return array(
-    'rsc_attachment_formatter_formatter_icons' => array(
-      'label' => t('Icons for read, download and google drive'),
+    'rsc_attachment_formatter_list' => array(
+      'label' => t('List of links'),
       'field types' => array('file'),
       'settings'  => array(),
     ),
-    'rsc_attachment_formatter_formatter_dropdown' => array(
+    'rsc_attachment_formatter_dropdown' => array(
       'label' => t('Direct link, with JS dropdown'),
       'field types' => array('file'),
       'settings'  => array(),
     ),
-    'rsc_attachment_formatter_formatter_list' => array(
-      'label' => t('List of links for read, download and google drive'),
+    'rsc_attachment_formatter_audio' => array(
+      'label' => t('HTML5 audio element & download link'),
       'field types' => array('file'),
       'settings'  => array(),
     ),
-    'rsc_attachment_formatter_formatter_audio' => array(
-      'label' => t('HTML5 audio element & download link'),
+    'rsc_attachment_formatter_auto' => array(
+      'label' => t('Automatically choose a formatter based on the mime type'),
       'field types' => array('file'),
       'settings'  => array(),
     ),
@@ -47,84 +47,33 @@ function rsc_attachment_formatter_field_formatter_info() {
  * Implements hook_field_formatter_view().
  */
 function rsc_attachment_formatter_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
-  $element = array();
+  $elements = array();
 
   foreach($items as $file) {
-    
-    $func = $display['type'];
-    if (function_exists($func)) {
-      switch($func) {
-        case 'rsc_attachment_formatter_formatter_audio':
-          $element[]['#markup'] = $func($file);
-          break;
-        default:
-          $url_dl = rsc_attachment_formatter_download_path($file['fid']);
-          $url_read = file_create_url($file['uri']);
-          $url_drive = 'http://docs.google.com/viewer?url='.$url_read;
-          $element[]['#markup'] = $func($url_dl,$url_read,$url_drive);
-          break;
-      }
-    }
-    
-    break; // for now, allow only one item, because of our theme. TODO: is there a better way to do this?
+    $formatter_function = $display['type'];
+    $element[] = array(
+      '#markup' => $formatter_function($file),
+    );
   }
 
-  return $element;
-}
-
-
-/**
- * The icons formatter
- */
-function rsc_attachment_formatter_formatter_icons($url_dl,$url_read,$url_drive) {
-  // TODO: configurable images and tooltips?
-  $path = drupal_get_path('module', 'rsc_attachment_formatter');
-  $img_dl = l('<img alt="'.t('Download').'" src="/'.$path.'/download.png">', $url_dl, array(
-    'attributes' => array(
-      'title'  => t('Download this article'),
-      'target' => '_blank',
-    ),
-    'html' => TRUE,
-  ));
-  $img_read = l('<img alt="'.t('Read').'" src="/'.$path.'/read.png">', $url_read, array(
-    'attributes' => array(
-      'title'  => t('Read this article in your browser'),
-      'target' => '_blank',
-    ),
-    'html' => TRUE,
-  ));
-  $img_drive = l('<img alt="'.t('Google Drive').'" src="/'.$path.'/drive.png">', $url_drive, array(
-    'attributes' => array(
-      'title'  => t('Open this as a document in Google Drive'),
-      'target' => '_blank',
-    ),
-    'html' => TRUE,
-  ));
-  
-  return <<<MARKUP
-<ul class="att-links icons">
-  <li class="read">$img_read</li>
-  <li class="dl">$img_dl</li>
-  <li class="drive">$img_drive</li>
-</ul>
-MARKUP;
+  return $elements;
 }
 
 
 /**
  * The dropdown formatter
  */
-function rsc_attachment_formatter_formatter_dropdown($url_dl,$url_read,$url_drive) {
+function rsc_attachment_formatter_dropdown($file) {
   // This is the same as the list formatter, but with javascript added. All CSS is left to the themer.
   drupal_add_js(drupal_get_path('module', 'rsc_attachment_formatter').'/rsc_attachment_formatter_dropdown.js', 'file');
-  return rsc_attachment_formatter_formatter_list($url_dl,$url_read,$url_drive);
+  return rsc_attachment_formatter_list($file);
 }
 
 
 /**
  * The audio&download formatter
  */
-function rsc_attachment_formatter_formatter_audio($file) {
+function rsc_attachment_formatter_audio($file) {
   $a_dl = l(t('Download'), rsc_attachment_formatter_download_path($file['fid']), array(
     'attributes' => array(
       'title'  => t('Download this audio file'),
@@ -158,7 +107,10 @@ MARKUP;
 /**
  * The list formatter
  */
-function rsc_attachment_formatter_formatter_list($url_dl,$url_read,$url_drive) {
+function rsc_attachment_formatter_list($file) {
+
+  list($url_dl, $url_read, $url_drive) = rsc_attachment_get_links($file);
+
   $a_dl = l(t('Download'), $url_dl, array(
     'attributes' => array(
       'title'  => t('Download this article'),
@@ -185,6 +137,28 @@ function rsc_attachment_formatter_formatter_list($url_dl,$url_read,$url_drive) {
   <li class="drive">$a_drive</li>
 </ul>
 MARKUP;
+}
+
+
+/**
+ * The automatic formatter
+ */
+function rsc_attachment_formatter_auto($file) {
+
+  // Get the type of file
+  switch(rsc_attachment_get_type($file['filemime'])) {
+    case 'text':
+      return rsc_attachment_formatter_dropdown($file);
+    case 'video':
+      // TODO!
+      break;
+    case 'audio':
+      return rsc_attachment_formatter_audio($file);
+  }
+
+  drupal_set_message(t("Unknown file type !mime encountered (RSC Attachment Formatter).", array("!type" => $file['filemime'])), 'warning', FALSE);
+  return "";
+
 }
 
 
@@ -255,4 +229,37 @@ function rsc_attachment_formatter_download($fid)
  */
 function rsc_attachment_formatter_download_path($fid) {
   return 'download/file/fid/' . $fid;
+}
+
+
+/**
+ * Get the links for a file from the file object
+ */
+function rsc_attachment_get_links($file) {
+
+  $url_dl = rsc_attachment_formatter_download_path($file['fid']);
+  $url_read = file_create_url($file['uri']);
+  $url_drive = 'http://docs.google.com/viewer?url='.$url_read;
+
+  return array($url_dl, $url_read, $url_drive);
+
+}
+
+
+/**
+ * Check whether the file is audio, video, or text (i.e. a document)
+ */
+function rsc_attachment_get_type($filemime) {
+  // TEXT
+  if (substr($filemime, -3) == 'pdf' || substr($filemime, 0, 4) == 'text') {
+    return 'text';
+  }
+  // AUDIO
+  if (substr($filemime, 0, 5) == 'audio') {
+    return 'audio';
+  }
+  // VIDEO
+  if (substr($filemime, 0, 5) == 'video') {
+    return 'video';
+  }
 }
