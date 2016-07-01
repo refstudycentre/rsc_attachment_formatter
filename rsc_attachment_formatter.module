@@ -45,6 +45,14 @@ function rsc_attachment_formatter_field_formatter_info() {
 
 /**
  * Implements hook_field_formatter_view().
+ * @param $entity_type
+ * @param $entity
+ * @param $field
+ * @param $instance
+ * @param $langcode
+ * @param $items
+ * @param $display
+ * @return array
  */
 function rsc_attachment_formatter_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
   $elements = array();
@@ -62,6 +70,8 @@ function rsc_attachment_formatter_field_formatter_view($entity_type, $entity, $f
 
 /**
  * The dropdown formatter
+ * @param $file
+ * @return string
  */
 function rsc_attachment_formatter_dropdown($file) {
   // This is the same as the list formatter, but with javascript added. All CSS is left to the themer.
@@ -72,6 +82,8 @@ function rsc_attachment_formatter_dropdown($file) {
 
 /**
  * The audio&download formatter
+ * @param $file
+ * @return string
  */
 function rsc_attachment_formatter_audio($file) {
 
@@ -98,6 +110,8 @@ MARKUP;
 
 /**
  * The video&download formatter
+ * @param $file
+ * @return string
  */
 function rsc_attachment_formatter_video($file) {
 
@@ -124,6 +138,8 @@ MARKUP;
 
 /**
  * The list formatter
+ * @param $file
+ * @return string
  */
 function rsc_attachment_formatter_list($file) {
 
@@ -160,6 +176,8 @@ MARKUP;
 
 /**
  * The automatic formatter
+ * @param $file
+ * @return string
  */
 function rsc_attachment_formatter_auto($file) {
 
@@ -243,6 +261,8 @@ function rsc_attachment_formatter_download($fid)
 
 /**
  * Get the path of a file's download link
+ * @param $fid
+ * @return string
  */
 function rsc_attachment_formatter_download_path($fid) {
   return 'download/file/fid/' . $fid;
@@ -251,6 +271,8 @@ function rsc_attachment_formatter_download_path($fid) {
 
 /**
  * Get the links for a file from the file object
+ * @param $file
+ * @return array
  */
 function rsc_attachment_formatter_get_links($file) {
 
@@ -265,6 +287,8 @@ function rsc_attachment_formatter_get_links($file) {
 
 /**
  * Check whether the file is audio, video, or text (i.e. a document)
+ * @param $filemime
+ * @return null|string
  */
 function rsc_attachment_formatter_get_type($filemime) {
   // TEXT
