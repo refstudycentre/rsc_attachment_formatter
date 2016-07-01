@@ -126,10 +126,10 @@ function rsc_attachment_formatter_video($file) {
 
   return <<<MARKUP
 <div class="rsc-attachment-formatter rsc-attachment-formatter-video">
+  <div>$a_dl</div>
   <video controls>
     <source src="$href" type="$type">
   </video>
-  $a_dl
 </div>
 MARKUP;
 
