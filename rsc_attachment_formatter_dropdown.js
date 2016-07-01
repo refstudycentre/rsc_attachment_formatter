@@ -1,7 +1,7 @@
 (function ($) {
   Drupal.behaviors.rsc_attachment_formatter_dropdown = {
     attach: function (context, settings) {
-      var $ul = $('ul.att-links.list');
+      var $ul = $('ul.rsc-attachment-formatter-list');
       $ul.addClass('js');
       $('li.dl, li.drive',$ul).wrapAll("<div class='drop' />");
       var $drop = $('div.drop',$ul);

@@ -51,7 +51,7 @@ function rsc_attachment_formatter_field_formatter_view($entity_type, $entity, $f
 
   foreach($items as $file) {
     $formatter_function = $display['type'];
-    $element[] = array(
+    $elements[] = array(
       '#markup' => $formatter_function($file),
     );
   }
@@ -74,6 +74,7 @@ function rsc_attachment_formatter_dropdown($file) {
  * The audio&download formatter
  */
 function rsc_attachment_formatter_audio($file) {
+
   $a_dl = l(t('Download'), rsc_attachment_formatter_download_path($file['fid']), array(
     'attributes' => array(
       'title'  => t('Download this audio file'),
@@ -81,26 +82,43 @@ function rsc_attachment_formatter_audio($file) {
     ),
   ));
   $href = file_create_url($file['uri']);
-  switch(substr($file['filename'],-3,3)) {
-    case 'mp3':
-      $type = 'audio/mpeg';
-      break;
-    case 'wav':
-      $type = 'audio/wav';
-      break;
-    case 'ogg':
-      $type = 'audio/ogg';
-      break;
-  }
+  $type = $file['filemime'];
   
   return <<<MARKUP
-<div class="att-links audio">
+<div class="rsc-attachment-formatter rsc-attachment-formatter-audio">
   <audio controls>
     <source src="$href" type="$type">
   </audio>
   $a_dl
 </div>
 MARKUP;
+
+}
+
+
+/**
+ * The video&download formatter
+ */
+function rsc_attachment_formatter_video($file) {
+
+  $a_dl = l(t('Download'), rsc_attachment_formatter_download_path($file['fid']), array(
+    'attributes' => array(
+      'title'  => t('Download this video'),
+      'target' => '_blank',
+    ),
+  ));
+  $href = file_create_url($file['uri']);
+  $type = $file['filemime'];
+
+  return <<<MARKUP
+<div class="rsc-attachment-formatter rsc-attachment-formatter-video">
+  <video controls>
+    <source src="$href" type="$type">
+  </video>
+  $a_dl
+</div>
+MARKUP;
+
 }
 
 
@@ -109,7 +127,7 @@ MARKUP;
  */
 function rsc_attachment_formatter_list($file) {
 
-  list($url_dl, $url_read, $url_drive) = rsc_attachment_get_links($file);
+  list($url_dl, $url_read, $url_drive) = rsc_attachment_formatter_get_links($file);
 
   $a_dl = l(t('Download'), $url_dl, array(
     'attributes' => array(
@@ -131,7 +149,7 @@ function rsc_attachment_formatter_list($file) {
   ));
   
   return <<<MARKUP
-<ul class="att-links list">
+<ul class="rsc-attachment-formatter rsc-attachment-formatter-list">
   <li class="read">$a_read</li>
   <li class="dl">$a_dl</li>
   <li class="drive">$a_drive</li>
@@ -146,17 +164,16 @@ MARKUP;
 function rsc_attachment_formatter_auto($file) {
 
   // Get the type of file
-  switch(rsc_attachment_get_type($file['filemime'])) {
+  switch(rsc_attachment_formatter_get_type($file['filemime'])) {
     case 'text':
       return rsc_attachment_formatter_dropdown($file);
     case 'video':
-      // TODO!
-      break;
+      return rsc_attachment_formatter_video($file);
     case 'audio':
       return rsc_attachment_formatter_audio($file);
   }
 
-  drupal_set_message(t("Unknown file type !mime encountered (RSC Attachment Formatter).", array("!type" => $file['filemime'])), 'warning', FALSE);
+  drupal_set_message(t("Unknown file type !mime encountered (RSC Attachment Formatter).", array("!mime" => $file['filemime'])), 'warning', FALSE);
   return "";
 
 }
@@ -235,7 +252,7 @@ function rsc_attachment_formatter_download_path($fid) {
 /**
  * Get the links for a file from the file object
  */
-function rsc_attachment_get_links($file) {
+function rsc_attachment_formatter_get_links($file) {
 
   $url_dl = rsc_attachment_formatter_download_path($file['fid']);
   $url_read = file_create_url($file['uri']);
@@ -249,7 +266,7 @@ function rsc_attachment_get_links($file) {
 /**
  * Check whether the file is audio, video, or text (i.e. a document)
  */
-function rsc_attachment_get_type($filemime) {
+function rsc_attachment_formatter_get_type($filemime) {
   // TEXT
   if (substr($filemime, -3) == 'pdf' || substr($filemime, 0, 4) == 'text') {
     return 'text';
