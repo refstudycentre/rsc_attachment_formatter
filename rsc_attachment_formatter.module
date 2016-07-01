@@ -279,4 +279,6 @@ function rsc_attachment_formatter_get_type($filemime) {
   if (substr($filemime, 0, 5) == 'video') {
     return 'video';
   }
+
+  return NULL;
 }
